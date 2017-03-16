@@ -29,7 +29,7 @@ import java.util.List;
 public class Consumer {
 
     public static void main(String[] args) throws InterruptedException, MQClientException {
-        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("please_rename_unique_group_name_4");
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("vacuum_group");
 
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
 
@@ -40,13 +40,12 @@ public class Consumer {
             @Override
             public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
                                                             ConsumeConcurrentlyContext context) {
-                System.out.println(Thread.currentThread().getName() + " Receive New Messages: " + msgs);
+                System.out.printf(Thread.currentThread().getName() + " Receive New Messages: " + msgs + "%n");
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             }
         });
 
         consumer.start();
-
-        System.out.println("Consumer Started.");
+        System.out.printf("Consumer Started.%n");
     }
 }

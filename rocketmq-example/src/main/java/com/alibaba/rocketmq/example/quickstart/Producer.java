@@ -26,34 +26,29 @@ import com.alibaba.rocketmq.remoting.common.RemotingHelper;
 
 public class Producer {
     public static void main(String[] args) throws MQClientException, InterruptedException {
-        DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
+        DefaultMQProducer producer = new DefaultMQProducer("vacuum_group");
+        producer.setNamesrvAddr("localhost:9876");
 
         producer.start();
-
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 20; i++) {
             try {
-                Message msg = new Message("TopicTest",// topic
-                        "TagA",// tag
-                        ("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET)// body
+                Message msg = new Message("TopicTest",
+                        "Push",
+                        ("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET)
                 );
                 SendResult sendResult = producer.send(msg);
                 LocalTransactionExecuter tranExecuter = new LocalTransactionExecuter() {
-
                     @Override
                     public LocalTransactionState executeLocalTransactionBranch(Message msg, Object arg) {
-                        // TODO Auto-generated method stub
                         return null;
                     }
                 };
-
-                //producer.sendMessageInTransaction(msg, tranExecuter, arg)
-                System.out.println(sendResult);
+                System.out.printf("%s%n", sendResult);
+                Thread.sleep(1000);
             } catch (Exception e) {
                 e.printStackTrace();
-                Thread.sleep(1000);
             }
         }
-
         producer.shutdown();
     }
 }

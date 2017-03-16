@@ -76,10 +76,16 @@ public class NamesrvStartup {
                 return null;
             }
 
-
+            //todo 这里是为了以main方式启动name服务而修改的
             final NamesrvConfig namesrvConfig = new NamesrvConfig();
+            namesrvConfig.setRocketmqHome("/Users/lybuestc/develop/openSource/RocketMQ");
             final NettyServerConfig nettyServerConfig = new NettyServerConfig();
             nettyServerConfig.setListenPort(9876);
+
+//
+//            final NamesrvConfig namesrvConfig = new NamesrvConfig();
+//            final NettyServerConfig nettyServerConfig = new NettyServerConfig();
+//            nettyServerConfig.setListenPort(9876);
             if (commandLine.hasOption('c')) {
                 String file = commandLine.getOptionValue('c');
                 if (file != null) {

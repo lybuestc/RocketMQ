@@ -108,8 +108,11 @@ public class BrokerStartup {
                 return null;
             }
 
-
             final BrokerConfig brokerConfig = new BrokerConfig();
+            brokerConfig.setRocketmqHome("/Users/lybuestc/develop/openSource/RocketMQ");
+            brokerConfig.setNamesrvAddr("localhost:9876");
+
+//            final BrokerConfig brokerConfig = new BrokerConfig();
             final NettyServerConfig nettyServerConfig = new NettyServerConfig();
             final NettyClientConfig nettyClientConfig = new NettyClientConfig();
             nettyServerConfig.setListenPort(10911);
