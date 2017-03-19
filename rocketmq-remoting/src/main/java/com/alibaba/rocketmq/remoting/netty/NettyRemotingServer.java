@@ -199,6 +199,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             this.nettyEventExecuter.start();
         }
 
+        // 每隔1秒扫描下异步调用超时情况
         this.timer.scheduleAtFixedRate(new TimerTask() {
 
             @Override

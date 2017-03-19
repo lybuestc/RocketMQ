@@ -100,6 +100,17 @@ public class RouteInfoManager {
         return topicList.encode();
     }
 
+    /**
+     * broker向namesrv注册函数
+     * 主要功能步骤包括：
+     * 1、将当前请求注册的broker信息保存或者更新到clusterAddrTable、brokerAddrTable中
+     * 2、将当前请求注册的broker的topic信息，保存或者更新到topicQueueTable中
+     * -- 其中isBrokerTopicConfigChanged用来判断当前请求broker信息是否为最新版本，如果是则替换，不是则跳过
+     * -- createAndUpdateQueueData为具体觉得创建还是更新topicQueueTable
+     * -- 其中topicQueueTable中保存了对应topic的queueDate，queueDate保存了broker的name、write及read的queue数量，及topicSynFlag
+     * 3、如果当前broker为master节点，则直接按照上述步骤更新，如果为slave节点，则将haServerAddr、masterAddr等信息设置到result返回值中
+     * 如果是slave，则返回master的ha地址
+     */
     public RegisterBrokerResult registerBroker(//
                                                final String clusterName,// 1
                                                final String brokerAddr,// 2
@@ -113,10 +124,12 @@ public class RouteInfoManager {
         RegisterBrokerResult result = new RegisterBrokerResult();
         try {
             try {
+                //// 加写锁
                 this.lock.writeLock().lockInterruptibly();
 
-
+                // 更新集群信息（根据集群名字，获取当前集群下面的所有brokerName）
                 Set<String> brokerNames = this.clusterAddrTable.get(clusterName);
+                // 如果当前集群下面brokerNames为空，则将当前请求broker加入到clusterAddrTable中
                 if (null == brokerNames) {
                     brokerNames = new HashSet<String>();
                     this.clusterAddrTable.put(clusterName, brokerNames);
@@ -125,8 +138,9 @@ public class RouteInfoManager {
 
                 boolean registerFirst = false;
 
-
+                // 更新主备信息（在brokerAddrTable中获取所有的brokerDAte）
                 BrokerData brokerData = this.brokerAddrTable.get(brokerName);
+                // 如果当前不存在brokerData，即还没有broker向namesrv注册，则直接将当前broker信息put加入
                 if (null == brokerData) {
                     registerFirst = true;
                     brokerData = new BrokerData();
@@ -136,25 +150,30 @@ public class RouteInfoManager {
 
                     this.brokerAddrTable.put(brokerName, brokerData);
                 }
+                // 获取当前注册broker的brokerAddr地址
                 String oldAddr = brokerData.getBrokerAddrs().put(brokerId, brokerAddr);
                 registerFirst = registerFirst || (null == oldAddr);
 
-
-                if (null != topicConfigWrapper //
+                // 更新Topic信息
+                if (null != topicConfigWrapper //如果topicConfigWrapper不为空，且当前brokerId == 0，即为当前broker为master
                         && MixAll.MASTER_ID == brokerId) {
+                    // 如果Topic配置信息发生变更或者该broker为第一次注册
                     if (this.isBrokerTopicConfigChanged(brokerAddr, topicConfigWrapper.getDataVersion())//
                             || registerFirst) {
+                        // 获取所有topic信息
                         ConcurrentHashMap<String, TopicConfig> tcTable =
                                 topicConfigWrapper.getTopicConfigTable();
                         if (tcTable != null) {
+                            //遍历所有Topic
                             for(Map.Entry<String,TopicConfig> entry: tcTable.entrySet()){
+                                // 根据brokername及topicconfig（read、write queue数量等）新增或者更新到topicQueueTable中
                                 this.createAndUpdateQueueData(brokerName, entry.getValue());
                             }
                         }
                     }
                 }
 
-
+                // 更新最后变更时间（将brokerLiveTable中保存的对应的broker的更新时间戳，设置为当前时间）
                 BrokerLiveInfo prevBrokerLiveInfo = this.brokerLiveTable.put(brokerAddr, //
                         new BrokerLiveInfo(//
                                 System.currentTimeMillis(), //
@@ -165,7 +184,7 @@ public class RouteInfoManager {
                     log.info("new broker registerd, {} HAServer: {}", brokerAddr, haServerAddr);
                 }
 
-
+                // 更新Filter Server列表
                 if (filterServerList != null) {
                     if (filterServerList.isEmpty()) {
                         this.filterServerTable.remove(brokerAddr);
@@ -174,8 +193,9 @@ public class RouteInfoManager {
                     }
                 }
 
-
+                // 返回值（如果当前broker为slave节点）则将haServerAddr、masterAddr等信息设置到result返回值中
                 if (MixAll.MASTER_ID != brokerId) {
+                    // 通过brokename的brokedate获取当前slave节点的master节点addr
                     String masterAddr = brokerData.getBrokerAddrs().get(MixAll.MASTER_ID);
                     if (masterAddr != null) {
                         BrokerLiveInfo brokerLiveInfo = this.brokerLiveTable.get(masterAddr);

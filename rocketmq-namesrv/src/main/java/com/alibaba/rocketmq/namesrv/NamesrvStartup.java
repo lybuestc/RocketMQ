@@ -47,6 +47,7 @@ public class NamesrvStartup {
     public static Properties properties = null;
     public static CommandLine commandLine = null;
 
+    // NameSrv的入口函数
     public static void main(String[] args) {
         main0(args);
     }
@@ -77,8 +78,13 @@ public class NamesrvStartup {
             }
 
             //todo 这里是为了以main方式启动name服务而修改的
-            final NamesrvConfig namesrvConfig = new NamesrvConfig();
+            //初始化配置文件
+            final NamesrvConfig namesrvConfig = new NamesrvConfig();//加载namesrv相关配置项
             namesrvConfig.setRocketmqHome("/Users/lybuestc/develop/openSource/RocketMQ");
+
+            //加载nettyServerConfig配置项
+            // netty具体的启动工作为后续函数controller.start();
+            // 设置netty监听端口为9876
             final NettyServerConfig nettyServerConfig = new NettyServerConfig();
             nettyServerConfig.setListenPort(9876);
 
@@ -125,8 +131,13 @@ public class NamesrvStartup {
             MixAll.printObjectProperties(log, namesrvConfig);
             MixAll.printObjectProperties(log, nettyServerConfig);
 
-
+            // 初始化服务控制对象（NamesrvController为核心类，保存了大量的namesrv需要的信息）
             final NamesrvController controller = new NamesrvController(namesrvConfig, nettyServerConfig);
+            // initialize核心函数，其中主要作用为：
+            // 1、初始化netty相关配置
+            // 2、定义broker与namesrv通过netty进行通信，的通信协议（即请求中带上code，来代表对应调用哪个方法函数）
+            // 3、定时每10s扫描broker信息，如果过期则移除
+            // 4、定时每10s将configTable的信息记录到日志文件中
             boolean initResult = controller.initialize();
             if (!initResult) {
                 controller.shutdown();
@@ -153,7 +164,7 @@ public class NamesrvStartup {
                 }
             }, "ShutdownHook"));
 
-
+            // 启动服务（主要就是启动netty监听网络通信请求，即初始化netty启动异步通信server）
             controller.start();
 
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
